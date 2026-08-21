@@ -837,6 +837,9 @@ body.resizing-sidebar #map { pointer-events: none; }
 .node .rm:hover { color: var(--critical); background: none; }
 .node.loading .label { color: var(--muted); font-style: italic; }
 .node-desc { font-size: 11.5px; color: var(--muted); line-height: 1.4; padding: 0 8px 6px 26px; }
+.node-desc a { color: var(--accent); }
+li:has(> .category-node[data-cat="Honorable Mentions"]) { opacity: .82; }
+.category-node[data-cat="Honorable Mentions"] .label { color: var(--muted); }
 .badge-dot { width: 10px; height: 10px; border-radius: 3px; flex: 0 0 auto; }
 .err { color: var(--critical); font-size: 12px; padding: 2px 6px; }
 #map { flex: 1; min-width: 0; }
@@ -899,9 +902,15 @@ table.attrs td a { color: var(--accent); }
   border: 1px solid var(--border); border-radius: 8px;
   padding: 8px; margin-bottom: 8px; background: var(--page);
 }
-.active-layer .top { display: flex; align-items: center; gap: 8px; }
+.active-layer .top { display: flex; align-items: center; gap: 6px 8px; flex-wrap: wrap; }
 .active-layer .name { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
 .active-layer .name:hover { color: var(--accent); }
+.loading-dots { display: inline-flex; gap: 2px; margin-left: 6px; vertical-align: middle; flex: 0 0 auto; }
+.loading-dots span { width: 4px; height: 4px; border-radius: 50%; background: var(--muted); animation: dotFlash 1.1s infinite ease-in-out both; }
+.loading-dots span:nth-child(1) { animation-delay: -0.28s; }
+.loading-dots span:nth-child(2) { animation-delay: -0.14s; }
+.loading-dots span:nth-child(3) { animation-delay: 0s; }
+@keyframes dotFlash { 0%, 80%, 100% { opacity: .25; transform: scale(0.7); } 40% { opacity: 1; transform: scale(1); } }
 .active-layer .controls { display: flex; align-items: center; gap: 8px; margin-top: 6px; color: var(--muted); font-size: 12px; }
 .active-layer input[type="range"] { flex: 1; accent-color: var(--accent); }
 .legend { margin-top: 6px; font-size: 11px; color: var(--ink-2); max-height: 160px; overflow-y: auto; }
@@ -1043,8 +1052,8 @@ const SEED_SOURCES = [
     note: 'NM emergency management data — wildfire, hazmat, general hazards. Includes some dam-safety and flood-hazard layers among broader emergency-management content.' },
   { name: 'Earth Data Analysis Center, UNM', url: 'https://edacarc20.unm.edu/arcgis/services', kind: 'root', category: 'Other',
     note: 'UNM\'s general remote-sensing/geospatial data center — imagery, land cover, broad environmental data. Not water-specific.' },
-  { name: 'NM Energy, Minerals & Natural Resources Department', url: 'https://gis.emnrd.nm.gov/arcgis/services', kind: 'root', category: 'Other',
-    note: 'NM\'s energy, minerals, forestry, and state parks agency. Its Oil Conservation Division touches groundwater/produced-water issues, but the agency overall isn\'t primarily water. (Also currently fails to load in-browser — likely CORS-restricted on their end, unrelated to this categorization.)' },
+  { name: 'NM Energy, Minerals & Natural Resources Department', url: 'https://gis.emnrd.nm.gov/arcgis/services', kind: 'root', category: 'Honorable Mentions',
+    note: 'NM\'s energy, minerals, forestry, and state parks agency — Oil Conservation Division data touches groundwater/produced-water issues. Confirmed reachable from desktop GIS software, but it blocks browser-based requests (likely a CORS restriction on their end), so it can\'t be added as a layer here.' },
   { name: 'Homeland Infrastructure Foundation-Level Data (HIFLD) Open — Dept. of Homeland Security', url: 'https://services2.arcgis.com/FiaPA4ga0iQKduv3/ArcGIS/rest/services', kind: 'root', category: 'Other',
     note: 'DHS\'s national infrastructure catalog — includes dams, water treatment plants, and aqueducts, but spans hundreds of unrelated layers (power, telecom, hospitals, schools).' },
   { name: 'Esri ArcGIS Living Atlas (public reference layers)', url: 'https://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services', kind: 'root', category: 'Other',
@@ -1117,8 +1126,8 @@ const SEED_SOURCES = [
     note: 'USGS basemap/cache tile services — not thematic water data.' },
   { name: 'US Geological Survey (USGS) Water Data (OGC API - Features)', url: 'https://api.waterdata.usgs.gov/ogcapi/v0', kind: 'ogcapi', category: 'Water',
     note: 'Explicitly water: USGS\'s modern water data API (monitoring locations, daily values, etc.).' },
-  { name: 'NM Water Data Geoserver (Web Feature Service)', url: 'https://geoserver.newmexicowaterdata.org/geoserver/die/wfs', kind: 'wfs', category: 'Water',
-    note: 'Explicitly water: New Mexico Water Data initiative\'s WFS.' },
+  { name: 'NM Water Data Geoserver (Web Feature Service)', url: 'https://geoserver.newmexicowaterdata.org/geoserver/die/wfs', kind: 'wfs', category: 'Honorable Mentions',
+    note: 'The "die" workspace is the NM Water Data Initiative\'s real Data Integration Engine. Confirmed: the server is live (its GetCapabilities loads fine in a browser tab), but it blocks cross-origin requests from other sites, including this app — likely restricted to its own front-end. Use https://weaver.newmexicowaterdata.org/die directly for this data.' },
   { name: 'Water Quality Portal (Station Search)', url: 'https://www.waterqualitydata.us/data/Station/search', kind: 'wqp', category: 'Water',
     note: 'Explicitly water: Water Quality Portal monitoring locations and sample results.' },
 ];
@@ -1461,6 +1470,9 @@ function toast(msg, ms = 4200) {
   clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), ms);
 }
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function linkifyText(s) {
+  return esc(s).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+}
 
 /* ---- shared fetch: per-host throttling + automatic retry on 429 ---- */
 const HOST_MAX_CONCURRENCY = 2;
@@ -1618,7 +1630,7 @@ function removeSource(id) {
 }
 function renderTree() {
   treeEl.innerHTML = '';
-  const CATEGORY_ORDER = ['Water', 'Other'];
+  const CATEGORY_ORDER = ['Water', 'Other', 'Honorable Mentions'];
   const groups = new Map();
   for (const src of state.sources) {
     const cat = src.category || 'Other';
@@ -1631,12 +1643,17 @@ function renderTree() {
   });
   for (const cat of cats) treeEl.appendChild(categoryNode(cat, groups.get(cat)));
 }
+const CATEGORY_DESCRIPTIONS = {
+  'Water': 'Directly relevant to water resources and management.',
+  'Other': 'Not primarily water-focused, but still useful for basemap and context data — hover a source for what it actually contains.',
+  'Honorable Mentions': 'Legitimate, actively-maintained resources confirmed to work in desktop GIS software (ArcGIS/QGIS), but blocked from browser apps like this one — usually a CORS restriction on the provider\'s end that can\'t be fixed here. Kept visible so they\'re not lost; see each note for where to access them directly.',
+};
 function categoryNode(cat, srcs) {
   const sub = document.createElement('ul');
   sub.style.display = 'none';
   for (const src of srcs) sub.appendChild(sourceNode(src));
   const li = mkNode({
-    caret: true, label: `${cat} (${srcs.length})`, sub,
+    caret: true, label: `${cat} (${srcs.length})`, sub, desc: CATEGORY_DESCRIPTIONS[cat],
     onToggle: (c) => {
       const open = sub.style.display === 'none';
       sub.style.display = open ? '' : 'none';
@@ -1644,6 +1661,7 @@ function categoryNode(cat, srcs) {
     },
   });
   li.querySelector('.node').classList.add('category-node');
+  li.querySelector('.node').dataset.cat = cat;
   return li;
 }
 // Updates checkbox .checked states to match state.active in place, without rebuilding
@@ -1692,7 +1710,7 @@ function mkNode({ caret, label, type, sub, onToggle, checkbox, checked, onCheck,
   if (desc) {
     const d = document.createElement('div');
     d.className = 'node-desc';
-    d.textContent = desc;
+    d.innerHTML = linkifyText(desc);
     li.appendChild(d);
   }
   if (sub) li.appendChild(sub);
@@ -2018,7 +2036,8 @@ async function addFeatureLayer(url, meta) {
     },
   });
   lyr.on('requesterror', e => { if (!entry._warned) { entry._warned = true; toast('Layer "' + entry.title + '": ' + (e.message || 'request failed')); } });
-  lyr.on('load', () => applyPolygonFilterToEntry(entry));
+  lyr.on('loading', () => { entry.loading = true; renderActiveLayers(); });
+  lyr.on('load', () => { entry.loading = false; applyPolygonFilterToEntry(entry); renderActiveLayers(); });
   lyr.addTo(state.map);
   entry.leaflet = lyr;
   renderActiveLayers(); openDetails(key);
@@ -2203,12 +2222,15 @@ async function addFeatureCollectionLayer(key, url, typeName, title, fetcher, pop
 
   async function loadForCurrentView(isInitial) {
     const myReq = ++entry.reqId;
+    entry.loading = true;
+    renderActiveLayers();
     let bbox = null, reason = null;
     if (!entry.isTable) {
       ({ bbox, reason } = queryBboxForView());
       if (!bbox) {
         lyr.clearLayers();
         entry.features = []; entry.numberMatched = 0; entry.viewReason = reason;
+        entry.loading = false;
         renderActiveLayers();
         if (detailState.key === key) openWfsDetails(key);
         return;
@@ -2230,17 +2252,20 @@ async function addFeatureCollectionLayer(key, url, typeName, title, fetcher, pop
         }
       } else {
         if (myReq !== entry.reqId) return;
+        entry.loading = false;
         if (isInitial) {
           state.active.delete(key); state.map.removeLayer(lyr);
           renderActiveLayers(); syncTreeCheckboxes();
           toast('Could not load layer "' + (title || typeName) + '": ' + e.message);
         } else {
+          renderActiveLayers();
           toast('"' + entry.title + '": failed to refresh for this view (' + e.message + ')');
         }
         return;
       }
     }
     if (myReq !== entry.reqId) return; // a newer request superseded this one
+    entry.loading = false;
     const feats = geojson.features || [];
     if (isInitial && !entry.isTable && feats.length && !feats.some(f => f.geometry)) entry.isTable = true;
     entry.features = feats;
@@ -2588,9 +2613,10 @@ function renderActiveLayers() {
       <div class="top">
         <span class="badge-dot" style="background:${entry.color}"></span>
         <span class="name" title="Open stats & fields">${esc(entry.title)}</span>
-        <button class="small" data-a="zoom" title="Zoom to layer">⌖</button>
-        <button class="small" data-a="stats" title="Fields & stats">Σ</button>
-        ${(entry.kind === 'feature' || entry.kind === 'wfs') ? '<button class="small" data-a="style" title="Change color, size, and category-based symbology">🎨</button>' : ''}
+        ${entry.loading ? '<span class="loading-dots" title="Loading…"><span></span><span></span><span></span></span>' : ''}
+        <button class="small" data-a="zoom" title="Zoom to layer">⌖ Zoom</button>
+        <button class="small" data-a="stats" title="Fields & stats">Σ Stats</button>
+        ${(entry.kind === 'feature' || entry.kind === 'wfs') ? '<button class="small" data-a="style" title="Change color, size, and category-based symbology">🎨 Style</button>' : ''}
         ${huc10Btn}
         ${wqpBtn}
         <button class="small" data-a="rm" title="Remove">✕</button>
